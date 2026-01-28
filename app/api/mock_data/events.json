@@ -1,0 +1,14 @@
+{
+  "events": [
+    {
+      "id": "evt_1001",
+      "sport": "soccer",
+      "league": "Mock League",
+      "start_time": "2025-01-01T15:00:00",
+      "home": "Team A",
+      "away": "Team B",
+      "status": "scheduled",
+      "url": "https://example.com/match/evt_1001"
+    }
+  ]
+}
