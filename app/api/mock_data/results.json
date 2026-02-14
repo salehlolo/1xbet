@@ -1,0 +1,11 @@
+{
+  "results": [
+    {
+      "event_id": "evt_1001",
+      "home_score": 2,
+      "away_score": 1,
+      "final_total": 3,
+      "winner": "home"
+    }
+  ]
+}
