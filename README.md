@@ -12,6 +12,12 @@ source .venv/bin/activate
 pip install -e .
 ```
 
+### إعداد .env
+```bash
+cp .env.example .env
+```
+ثم حدّث القيم الحساسة مثل `API_KEY` و `TELEGRAM_BOT_TOKEN` و `TELEGRAM_CHAT_ID`.
+
 ## الإعدادات (Environment)
 ضع المتغيرات في `.env` أو صدّرها في البيئة:
 - `MOCK_MODE=1` لتفعيل القراءة من `app/api/mock_data/`.
@@ -34,6 +40,7 @@ python -m app.cli backtest --sport soccer --from 2025-01-01 --to 2025-06-01
 - `python -m app.cli alerts --sport soccer`
 - `python -m app.cli telegram-test`
 - `python -m app.cli send-matches --sport soccer --days 1 --limit 20`
+- `python -m app.cli print-config`
 
 ## أين أضع الـ API الحقيقي؟
 - عدّل متغيرات البيئة:
@@ -54,6 +61,10 @@ TELEGRAM_ENABLED=1
 TELEGRAM_BOT_TOKEN=xxxxx
 TELEGRAM_CHAT_ID=yyyyy
 MATCH_URL_TEMPLATE="https://your-site.com/match/{event_id}"
+```
+4) اختبار الاتصال:
+```bash
+python -m app.cli telegram-test
 ```
 > إذا كان الـ API يوفر رابط مباشر للمباراة، سيتم استخدامه تلقائيًا بدل `MATCH_URL_TEMPLATE`.
 

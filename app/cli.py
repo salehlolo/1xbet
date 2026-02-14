@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 from app.api.generic_adapter import GenericJSONAdapter
 from app.api.http_client import HttpClient
-from app.config import get_settings
+from app.config import get_settings, validate_settings
 from app.db.repo import Repository
 from app.db.schema import init_db
 from app.logging import setup_logging
@@ -16,6 +16,7 @@ from app.markets.overround import overround
 from app.strategies.totals_baseline import TotalsBaselineConfig, TotalsBaselineStrategy
 from app.backtest.engine import BacktestConfig, BacktestEngine
 from app.alerts.notifier import Alert, Notifier, TelegramNotifier
+from dotenv import load_dotenv
 
 SPORTS = ["soccer", "basketball", "tennis", "hockey", "baseball"]
 
@@ -34,7 +35,7 @@ def _apply_match_url_template(events, template: str) -> None:
 
 
 def command_fetch(args: argparse.Namespace) -> None:
-    settings = get_settings()
+    settings = validate_settings(get_settings())
     init_db(settings.db_path)
     repo = Repository(settings.db_path)
     client = HttpClient(
@@ -54,7 +55,7 @@ def command_fetch(args: argparse.Namespace) -> None:
 
 
 def command_map_markets(args: argparse.Namespace) -> None:
-    settings = get_settings()
+    settings = validate_settings(get_settings())
     init_db(settings.db_path)
     repo = Repository(settings.db_path)
     events = repo.load_events(args.sport)
@@ -81,7 +82,7 @@ def command_map_markets(args: argparse.Namespace) -> None:
 
 
 def command_backtest(args: argparse.Namespace) -> None:
-    settings = get_settings()
+    settings = validate_settings(get_settings())
     init_db(settings.db_path)
     repo = Repository(settings.db_path)
     client = HttpClient(
@@ -106,7 +107,7 @@ def command_backtest(args: argparse.Namespace) -> None:
 
 
 def command_alerts(args: argparse.Namespace) -> None:
-    settings = get_settings()
+    settings = validate_settings(get_settings())
     notifier = Notifier(settings.alerts_path, settings.telegram_webhook)
     message = f"Alert check for {args.sport} at {datetime.utcnow().isoformat()}"
     notifier.send(Alert(message=message, created_at=datetime.utcnow()))
@@ -128,8 +129,25 @@ def command_alerts(args: argparse.Namespace) -> None:
     print("Alert sent")
 
 
+def command_print_config(args: argparse.Namespace) -> None:
+    settings = validate_settings(get_settings())
+    masked_api_key = "****" if settings.api_key else ""
+    masked_bot_token = "****" if settings.telegram_bot_token else ""
+    print("API_BASE_URL:", settings.api_base_url)
+    print("API_EVENTS_ENDPOINT:", settings.api_events_endpoint)
+    print("API_ODDS_ENDPOINT:", settings.api_odds_endpoint)
+    print("API_RESULTS_ENDPOINT:", settings.api_results_endpoint)
+    print("MOCK_MODE:", int(settings.mock_mode))
+    print("DB_PATH:", settings.db_path)
+    print("TELEGRAM_ENABLED:", int(settings.telegram_enabled))
+    print("TELEGRAM_CHAT_ID:", settings.telegram_chat_id)
+    print("TELEGRAM_PARSE_MODE:", settings.telegram_parse_mode)
+    print("API_KEY:", masked_api_key)
+    print("TELEGRAM_BOT_TOKEN:", masked_bot_token)
+
+
 def command_telegram_test(args: argparse.Namespace) -> None:
-    settings = get_settings()
+    settings = validate_settings(get_settings())
     if not settings.telegram_enabled:
         logging.warning("Telegram is disabled. Set TELEGRAM_ENABLED=1 to enable.")
         return
@@ -148,7 +166,7 @@ def command_telegram_test(args: argparse.Namespace) -> None:
 
 
 def command_send_matches(args: argparse.Namespace) -> None:
-    settings = get_settings()
+    settings = validate_settings(get_settings())
     if not settings.telegram_enabled:
         logging.warning("Telegram is disabled. Set TELEGRAM_ENABLED=1 to enable.")
         return
@@ -229,11 +247,15 @@ def build_parser() -> argparse.ArgumentParser:
     send_matches_parser.add_argument("--no-league", dest="league", action="store_false")
     send_matches_parser.set_defaults(func=command_send_matches)
 
+    print_config_parser = subparsers.add_parser("print-config", help="Print current configuration")
+    print_config_parser.set_defaults(func=command_print_config)
+
     return parser
 
 
 def main() -> None:
     setup_logging(logging.INFO)
+    load_dotenv()
     parser = build_parser()
     args = parser.parse_args()
     args.func(args)

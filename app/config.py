@@ -5,6 +5,9 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -82,3 +85,22 @@ class Settings:
 
 def get_settings() -> Settings:
     return Settings()
+
+
+def validate_settings(settings: Settings) -> Settings:
+    if not settings.mock_mode:
+        missing = []
+        if not settings.api_base_url:
+            missing.append("API_BASE_URL")
+        if not settings.api_key:
+            missing.append("API_KEY")
+        if not settings.api_odds_endpoint:
+            missing.append("API_ODDS_ENDPOINT")
+        if missing:
+            logger.error("Missing required settings for live mode: %s", ", ".join(missing))
+            raise SystemExit(1)
+    if settings.telegram_enabled:
+        if not settings.telegram_bot_token or not settings.telegram_chat_id:
+            logger.warning("Telegram enabled but missing bot token or chat id. Disabling Telegram.")
+            settings.telegram_enabled = False
+    return settings

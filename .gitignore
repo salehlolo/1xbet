@@ -4,3 +4,4 @@ __pycache__/
 output/
 data/
 .env
+!.env.example
