@@ -27,9 +27,12 @@ cp .env.example .env
 - `SPORTS_IDS` مثال: `1,3,2`
 - `ALLOWED_MARKET_GROUPS` مثال: `1X2,totals,handicap`
 - `LOOKAHEAD_MINUTES` (فلترة المباريات القادمة)
+- `MIN_MINUTES_TO_KICKOFF` (استبعاد المباريات التي ستبدأ خلال دقائق قليلة جدًا)
 - `MAX_ALERTS_PER_DAY`
 - `MIN_SCORE_THRESHOLD`
 - `MAX_OVERROUND`
+- `MAX_ANALYST_EVALS_PER_CYCLE` (تحديد أعلى عدد فرص تدخل طبقة التحليل المتقدم في كل دورة)
+- `UPCOMING_ONLY=1` لتشغيل وضع المباريات القادمة فقط وتقليل الضغط
 - `STEAM_PROB_DELTA`, `OUTLIER_THRESHOLD`, `EV_THRESHOLD`
 - `COOLDOWN_MINUTES`
 - Telegram: `TELEGRAM_ENABLED`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
@@ -38,6 +41,13 @@ cp .env.example .env
 ```bash
 python -m app.main
 ```
+
+للوضع الموصى به (مباريات قريبة فقط):
+- `LOOKAHEAD_MINUTES=60`
+- `MIN_MINUTES_TO_KICKOFF=5`
+- `UPCOMING_ONLY=1`
+- `MAX_EVENTS_PER_CYCLE=120`
+- `MAX_ANALYST_EVALS_PER_CYCLE=30`
 
 ## تقرير الأداء (CLV)
 يوجد تجميع لأداء CLV في قاعدة البيانات عبر `Database.report_performance(days=7)` ويمكن ربطه لاحقًا بأمر CLI.

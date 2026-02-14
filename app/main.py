@@ -41,14 +41,26 @@ async def process_mode(
             return
 
         try:
-            event_ids = await fetcher.fetch_events(mode=mode, sport_id=sport_id)
+            if mode == "upcoming":
+                event_ids = await fetcher.fetch_upcoming_event_ids_window(
+                    sport_id=sport_id,
+                    lookahead_minutes=settings.lookahead_minutes,
+                    min_minutes_to_kickoff=settings.min_minutes_to_kickoff,
+                )
+            else:
+                event_ids = await fetcher.fetch_events(mode=mode, sport_id=sport_id)
+
             events = await fetcher.fetch_event_details(event_ids[: settings.max_events_per_cycle])
             for event in events:
                 if not event.sport or event.sport == "unknown":
                     event.sport = SPORT_NAME_MAP.get(sport_id, str(sport_id))
 
             if mode == "upcoming":
-                events = filter_events_by_start(events, settings.lookahead_minutes)
+                events = filter_events_by_start(
+                    events,
+                    lookahead=settings.lookahead_minutes,
+                    min_to_kickoff=settings.min_minutes_to_kickoff,
+                )
 
             for event in events:
                 sent_now = await process_event(event, db, tg, analyst, settings)
@@ -87,6 +99,12 @@ async def process_event(
         signals.extend(detect_steam(event, market_rows, history, settings))
 
     sent = 0
+    if settings.max_analyst_evals_per_cycle and len(signals) > settings.max_analyst_evals_per_cycle:
+        def _pre_score(signal: Signal) -> float:
+            return (0.7 * float(signal.fair_probability)) + (0.3 * max(0.0, float(signal.ev)))
+
+        signals = sorted(signals, key=_pre_score, reverse=True)[: settings.max_analyst_evals_per_cycle]
+
     for signal in signals:
         if db.has_recent_alert(signal.event_id, signal.market, signal.outcome, settings.cooldown_minutes):
             continue
@@ -116,10 +134,14 @@ async def poll_loop() -> None:
 
     try:
         while True:
-            await process_mode("inplay", fetcher, db, tg, analyst, settings)
-            await asyncio.sleep(settings.inplay_interval_seconds)
-            await process_mode("upcoming", fetcher, db, tg, analyst, settings)
-            await asyncio.sleep(max(1, settings.upcoming_interval_seconds - settings.inplay_interval_seconds))
+            if settings.upcoming_only:
+                await process_mode("upcoming", fetcher, db, tg, analyst, settings)
+                await asyncio.sleep(max(1, settings.upcoming_interval_seconds))
+            else:
+                await process_mode("inplay", fetcher, db, tg, analyst, settings)
+                await asyncio.sleep(settings.inplay_interval_seconds)
+                await process_mode("upcoming", fetcher, db, tg, analyst, settings)
+                await asyncio.sleep(max(1, settings.upcoming_interval_seconds - settings.inplay_interval_seconds))
     finally:
         await fetcher.close()
 

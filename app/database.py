@@ -56,6 +56,12 @@ class Database:
                     clv REAL,
                     timestamp TEXT
                 );
+                CREATE INDEX IF NOT EXISTS idx_snapshots_event_market_time
+                    ON snapshots(event_id, market, timestamp);
+                CREATE INDEX IF NOT EXISTS idx_snapshots_event_market_outcome_time
+                    ON snapshots(event_id, market, outcome, timestamp);
+                CREATE INDEX IF NOT EXISTS idx_alerts_event_market_outcome_time
+                    ON alerts(event_id, market, outcome, timestamp);
                 """
             )
             cols = [row[1] for row in conn.execute("PRAGMA table_info(snapshots)")]
@@ -105,15 +111,15 @@ class Database:
         conn = self._conn()
         try:
             cutoff = datetime.utcnow() - timedelta(minutes=minutes)
-            rows = conn.execute(
+            return conn.execute(
                 """
                 SELECT bookmaker, outcome, implied_p, fair_p, odds_raw, timestamp
                 FROM snapshots
-                WHERE event_id = ? AND market = ?
+                WHERE event_id = ? AND market = ? AND timestamp >= ?
+                ORDER BY timestamp ASC
                 """,
-                (event_id, market),
+                (event_id, market, cutoff.isoformat()),
             ).fetchall()
-            return [r for r in rows if datetime.fromisoformat(r[5]) >= cutoff]
         finally:
             conn.close()
 

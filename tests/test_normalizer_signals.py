@@ -45,8 +45,11 @@ def test_detect_steam():
 
 def test_filter_events_by_start_and_kelly():
     now = datetime.utcnow()
-    e1 = EventModel(event_id="1", sport_id=1, start_time=now + timedelta(minutes=20))
-    e2 = EventModel(event_id="2", sport_id=1, start_time=now + timedelta(minutes=120))
-    filtered = filter_events_by_start([e1, e2], lookahead=60)
+    e1 = EventModel(event_id="1", sport_id=1, start_time=now + timedelta(minutes=2))
+    e2 = EventModel(event_id="2", sport_id=1, start_time=now + timedelta(minutes=20))
+    e3 = EventModel(event_id="3", sport_id=1, start_time=now + timedelta(minutes=120))
+    e4 = EventModel(event_id="4", sport_id=1, start_time=None)
+    filtered = filter_events_by_start([e1, e2, e3, e4], lookahead=60, min_to_kickoff=5)
     assert len(filtered) == 1
+    assert filtered[0].event_id == "2"
     assert fractional_kelly(0.55, 2.0) > 0

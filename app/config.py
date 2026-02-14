@@ -22,12 +22,15 @@ class Settings:
     allowed_market_groups_raw: str = os.getenv("ALLOWED_MARKET_GROUPS", "1X2,totals,handicap")
 
     lookahead_minutes: int = int(os.getenv("LOOKAHEAD_MINUTES", "60"))
+    min_minutes_to_kickoff: int = int(os.getenv("MIN_MINUTES_TO_KICKOFF", "5"))
     max_alerts_per_day: int = int(os.getenv("MAX_ALERTS_PER_DAY", "10"))
     min_score_threshold: float = float(os.getenv("MIN_SCORE_THRESHOLD", "0.03"))
     max_events_per_cycle: int = int(os.getenv("MAX_EVENTS_PER_CYCLE", "200"))
+    max_analyst_evals_per_cycle: int = int(os.getenv("MAX_ANALYST_EVALS_PER_CYCLE", "30"))
 
     inplay_interval_seconds: int = int(os.getenv("INPLAY_INTERVAL_SECONDS", "60"))
     upcoming_interval_seconds: int = int(os.getenv("UPCOMING_INTERVAL_SECONDS", "600"))
+    upcoming_only: bool = os.getenv("UPCOMING_ONLY", "1") == "1"
 
     steam_window_minutes: int = int(os.getenv("STEAM_WINDOW_MINUTES", "10"))
     steam_prob_delta: float = float(os.getenv("STEAM_PROB_DELTA", "0.03"))
@@ -90,4 +93,15 @@ def validate_settings(settings: Settings) -> Settings:
     if settings.telegram_enabled and (not settings.telegram_bot_token or not settings.telegram_chat_id):
         logger.warning("Telegram enabled but TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID missing. Disabling Telegram.")
         settings.telegram_enabled = False
+
+    if settings.min_minutes_to_kickoff < 0:
+        logger.warning("MIN_MINUTES_TO_KICKOFF < 0; forcing to 0")
+        settings.min_minutes_to_kickoff = 0
+    if settings.lookahead_minutes <= settings.min_minutes_to_kickoff:
+        logger.warning(
+            "LOOKAHEAD_MINUTES (%s) <= MIN_MINUTES_TO_KICKOFF (%s); increasing lookahead by +10 minutes.",
+            settings.lookahead_minutes,
+            settings.min_minutes_to_kickoff,
+        )
+        settings.lookahead_minutes = settings.min_minutes_to_kickoff + 10
     return settings

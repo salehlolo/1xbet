@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Iterable, List
 
 import httpx
@@ -53,6 +53,40 @@ class BetsAPIFetcher:
             if event_id:
                 ids.append(str(event_id))
         return ids
+
+    async def fetch_upcoming_event_ids_window(
+        self,
+        sport_id: int,
+        lookahead_minutes: int,
+        min_minutes_to_kickoff: int,
+        days: int = 1,
+    ) -> List[str]:
+        params: dict[str, Any] = {
+            "sport_id": sport_id,
+            "token": self.settings.bets_api_key,
+            "days": days,
+        }
+        payload = await self._get(self.settings.upcoming_endpoint, params)
+        parsed = BetsAPIResponse(**payload)
+        results = parsed.results or []
+
+        now = datetime.utcnow()
+        min_start = now + timedelta(minutes=min_minutes_to_kickoff)
+        max_start = now + timedelta(minutes=lookahead_minutes)
+
+        picked: list[tuple[datetime, str]] = []
+        for raw in results:
+            event_id = raw.get("id") or raw.get("event_id")
+            if not event_id:
+                continue
+            start_time = _parse_start_time(raw)
+            if start_time is None:
+                continue
+            if min_start <= start_time <= max_start:
+                picked.append((start_time, str(event_id)))
+
+        picked.sort(key=lambda item: item[0])
+        return [event_id for _, event_id in picked]
 
     async def fetch_event_details(self, event_ids: Iterable[str]) -> List[EventModel]:
         event_ids = list(event_ids)
