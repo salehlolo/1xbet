@@ -97,7 +97,7 @@ class BetsAPIFetcher:
 
         logger.info("Upcoming RAW sport=%s: results=%s", sport_id, len(results))
 
-        event_ids: List[str] = []
+        picks: List[tuple[int, str]] = []
         for item in results:
             event_ts = _to_int(item.get("time") or item.get("start_time") or item.get("starts_at"))
             if not event_ts:
@@ -118,7 +118,10 @@ class BetsAPIFetcher:
             if minutes_to_kickoff > float(lookahead_minutes):
                 continue
 
-            event_ids.append(str(eid))
+            picks.append((event_ts, str(eid)))
+
+        picks.sort(key=lambda item: item[0])
+        event_ids = [event_id for _, event_id in picks]
 
         logger.info("Upcoming WINDOW sport=%s: in_window=%s", sport_id, len(event_ids))
         return event_ids
