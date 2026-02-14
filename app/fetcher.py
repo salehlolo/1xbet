@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timedelta, timezone
+import time
+from datetime import datetime, timezone
 from typing import Any, Iterable, List
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -23,6 +24,13 @@ def _parse_start_time(raw: dict[str, Any]) -> datetime | None:
         return datetime.fromtimestamp(float(value), tz=timezone.utc).replace(tzinfo=None)
     try:
         return datetime.fromisoformat(str(value).replace("Z", "+00:00")).replace(tzinfo=None)
+    except Exception:
+        return None
+
+
+def _to_int(x):
+    try:
+        return int(float(x))
     except Exception:
         return None
 
@@ -82,32 +90,38 @@ class BetsAPIFetcher:
         min_minutes_to_kickoff: int,
         days: int = 1,
     ) -> List[str]:
-        params: dict[str, Any] = {
-            "sport_id": sport_id,
-            "token": self.settings.bets_api_key,
-            "days": days,
-        }
+        params: dict[str, Any] = {"sport_id": sport_id, "token": self.settings.bets_api_key, "days": days}
         payload = await self._get(self.settings.upcoming_endpoint, params)
-        parsed = BetsAPIResponse(**payload)
-        results = parsed.results or []
+        results = payload.get("results") or []
+        now_ts = time.time()
 
-        now = datetime.utcnow()
-        min_start = now + timedelta(minutes=min_minutes_to_kickoff)
-        max_start = now + timedelta(minutes=lookahead_minutes)
+        logger.info("Upcoming RAW sport=%s: results=%s", sport_id, len(results))
 
-        picked: list[tuple[datetime, str]] = []
-        for raw in results:
-            event_id = raw.get("id") or raw.get("event_id")
-            if not event_id:
+        event_ids: List[str] = []
+        for item in results:
+            event_ts = _to_int(item.get("time") or item.get("start_time") or item.get("starts_at"))
+            if not event_ts:
                 continue
-            start_time = _parse_start_time(raw)
-            if start_time is None:
-                continue
-            if min_start <= start_time <= max_start:
-                picked.append((start_time, str(event_id)))
 
-        picked.sort(key=lambda item: item[0])
-        return [event_id for _, event_id in picked]
+            eid = item.get("our_event_id") or item.get("id")
+            if not eid:
+                continue
+
+            ts = str(item.get("time_status", ""))
+            if ts != "0":
+                continue
+
+            minutes_to_kickoff = (event_ts - now_ts) / 60.0
+
+            if minutes_to_kickoff < float(min_minutes_to_kickoff):
+                continue
+            if minutes_to_kickoff > float(lookahead_minutes):
+                continue
+
+            event_ids.append(str(eid))
+
+        logger.info("Upcoming WINDOW sport=%s: in_window=%s", sport_id, len(event_ids))
+        return event_ids
 
     async def fetch_event_details(self, event_ids: Iterable[str]) -> List[EventModel]:
         event_ids = list(event_ids)
