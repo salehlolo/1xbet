@@ -41,6 +41,9 @@ python -m app.main
 python run.py
 ```
 
+> ملاحظة: يفضل دائمًا `python run.py` أو `python -m app.main`. تشغيل الملف مباشرةً مثل
+`python app/main.py` قد يعمل، لكنه ليس المسار الموصى به.
+
 
 ## فحص سريع لقيم البيئة
 ```bash

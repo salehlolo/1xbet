@@ -67,9 +67,13 @@ async def process_mode(
     settings: Settings,
 ) -> None:
     alerts_sent_today = db.alerts_sent_today()
+    remaining_budget = max(0, settings.max_analyst_evals_per_cycle)
     for sport_id in settings.sports_ids:
         if alerts_sent_today >= settings.max_alerts_per_day:
             logger.info("Daily alert limit reached (%s).", settings.max_alerts_per_day)
+            return
+        if remaining_budget <= 0:
+            logger.info("Analyst cycle budget exhausted for this cycle.")
             return
 
         try:
@@ -95,9 +99,18 @@ async def process_mode(
                 )
 
             for event in events:
-                sent_now = await process_event(event, db, tg, analyst, settings)
+                sent_now, remaining_budget = await process_event(
+                    event,
+                    db,
+                    tg,
+                    analyst,
+                    settings,
+                    remaining_budget,
+                )
                 alerts_sent_today += sent_now
                 if alerts_sent_today >= settings.max_alerts_per_day:
+                    return
+                if remaining_budget <= 0:
                     return
         except Exception as exc:  # pragma: no cover
             logger.exception("Failed processing mode=%s sport=%s: %s", mode, sport_id, exc)
@@ -109,16 +122,15 @@ async def process_event(
     tg: TelegramClient,
     analyst: Analyst,
     settings: Settings,
-) -> int:
+    remaining_budget: int,
+) -> tuple[int, int]:
     rows = normalize_odds(
         event,
         allowed_groups=settings.allowed_market_groups,
         max_overround=settings.max_overround,
     )
     if not rows:
-        return 0
-
-    db.insert_snapshots(rows)
+        return 0, remaining_budget
 
     signals = []
     signals.extend(detect_positive_ev(event, rows, settings))
@@ -130,14 +142,17 @@ async def process_event(
         history = db.recent_market_snapshots(event.event_id, market, settings.steam_window_minutes)
         signals.extend(detect_steam(event, market_rows, history, settings))
 
-    sent = 0
-    if settings.max_analyst_evals_per_cycle and len(signals) > settings.max_analyst_evals_per_cycle:
+    if remaining_budget and len(signals) > remaining_budget:
         def _pre_score(signal: Signal) -> float:
             return (0.7 * float(signal.fair_probability)) + (0.3 * max(0.0, float(signal.ev)))
 
-        signals = sorted(signals, key=_pre_score, reverse=True)[: settings.max_analyst_evals_per_cycle]
+        signals = sorted(signals, key=_pre_score, reverse=True)[:remaining_budget]
+
+    sent = 0
 
     for signal in signals:
+        if remaining_budget <= 0:
+            break
         if db.has_recent_alert(signal.event_id, signal.market, signal.outcome, settings.cooldown_minutes):
             continue
 
@@ -146,13 +161,17 @@ async def process_event(
             continue
 
         opportunity = await analyst.evaluate_snapshot(snapshot)
+        remaining_budget -= 1
         if opportunity.overall_score < settings.min_score_threshold:
             continue
 
         db.insert_alert(signal)
         await tg.send_telegram_alert(signal)
         sent += 1
-    return sent
+
+    # Insert snapshots after history-based detections to avoid self-comparison in the same cycle.
+    db.insert_snapshots(rows)
+    return sent, remaining_budget
 
 
 async def poll_loop() -> None:

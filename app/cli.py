@@ -9,7 +9,7 @@ from app.api.http_client import HttpClient
 from app.config import get_settings, validate_settings
 from app.db.repo import Repository
 from app.db.schema import init_db
-from app.logging import setup_logging
+from app.app_logging import setup_logging
 from app.markets.filters import QualityConfig, filter_quality
 from app.markets.mapper import map_markets
 from app.markets.overround import overround
