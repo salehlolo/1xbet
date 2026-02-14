@@ -4,11 +4,16 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "betting-analysis"
-version = "0.1.0"
-description = "Betting analysis pipeline with mock mode"
+version = "0.2.0"
+description = "BetsAPI 1xBet odds analysis and Telegram signal monitor"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = ["python-dotenv"]
+dependencies = [
+  "python-dotenv",
+  "httpx",
+  "tenacity",
+  "pydantic>=2"
+]
 
 [project.optional-dependencies]
 test = ["pytest"]

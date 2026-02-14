@@ -1,100 +1,64 @@
-# Betting Analysis Pipeline (Mock-Ready)
+# BetsAPI 1xBet Signal Monitor (Python 3.11)
 
-> **Important**: هذا المشروع للتحليل والاختبار والمحاكاة والتنبيهات فقط. لا يتضمن أي رهانات حقيقية أو تسجيل دخول أو التفاف على أنظمة مواقع مراهنات.
+مشروع تحليل بيانات وأسعار فقط (بدون أي تنفيذ رهانات أو تسجيل دخول لمواقع مراهنة).
 
-## المتطلبات
-- Python 3.11+
+## ماذا يفعل؟
+- يجلب مباريات live وupcoming من BetsAPI endpoints الخاصة بـ 1xBet.
+- يطبّع الأودز إلى implied probabilities ثم يزيل الهامش (vig) لإنتاج fair probabilities.
+- يكتشف إشارات:
+  - Steam movement
+  - Consensus outlier
+  - Positive EV
+- يخزن snapshots في SQLite لحساب المقارنات التاريخية وCLV.
+- يرسل تنبيهات Telegram منظمة.
 
-## الإعداد
+## مهم
+هذا المشروع **لا يضع رهانات** ولا يفتح جلسات دخول لأي موقع مراهنات. هو لأغراض التحليل فقط.
+
+## Setup
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -e .
-```
-
-### إعداد .env
-```bash
 cp .env.example .env
 ```
-ثم حدّث القيم الحساسة مثل `API_KEY` و `TELEGRAM_BOT_TOKEN` و `TELEGRAM_CHAT_ID`.
+ثم عدّل `.env`.
 
-## الإعدادات (Environment)
-ضع المتغيرات في `.env` أو صدّرها في البيئة:
-- `MOCK_MODE=1` لتفعيل القراءة من `app/api/mock_data/`.
-- `DB_PATH=data/app.db`
-- `API_BASE_URL` و `API_KEY` و endpoints عند ربط مزود API الحقيقي.
-- `MATCH_URL_TEMPLATE` لبناء رابط المباراة (مثال: `https://your-site.com/match/{event_id}`).
+## إعدادات `.env`
+- `BETS_API_KEY` (مطلوب)
+- `BETS_API_BASE_URL` (افتراضي: `https://api.betsapi.com`)
+- `BETS_INPLAY_ENDPOINT=/v1/1xbet/inplay`
+- `BETS_UPCOMING_ENDPOINT=/v1/1xbet/upcoming`
+- `BETS_EVENT_ENDPOINT=/v1/1xbet/event`
+- `BETS_RESULT_ENDPOINT=/v1/1xbet/result`
+- `SPORTS_IDS=1,18,13,4,16`
+- حدود الإشارات: `EV_THRESHOLD`, `OUTLIER_THRESHOLD`, `STEAM_PROB_DELTA`
+- `COOLDOWN_MINUTES` لمنع تكرار التنبيه لنفس السوق بسرعة.
 
-## تشغيل سريع (Mock Mode)
+## Telegram
+- `TELEGRAM_ENABLED=1`
+- `TELEGRAM_BOT_TOKEN=...`
+- `TELEGRAM_CHAT_ID=...`
+
+## تشغيل
 ```bash
-export MOCK_MODE=1
-python -m app.cli fetch --sport soccer --days 1
-python -m app.cli map-markets --sport soccer
-python -m app.cli backtest --sport soccer --from 2025-01-01 --to 2025-06-01
+python -m app.main
 ```
 
-## CLI
-- `python -m app.cli fetch --sport soccer --days 1`
-- `python -m app.cli map-markets --sport soccer`
-- `python -m app.cli backtest --sport soccer --from 2025-01-01 --to 2025-06-01`
-- `python -m app.cli alerts --sport soccer`
-- `python -m app.cli telegram-test`
-- `python -m app.cli send-matches --sport soccer --days 1 --limit 20`
-- `python -m app.cli print-config`
+## Structure
+- `app/config.py`
+- `app/models.py`
+- `app/fetcher.py`
+- `app/normalizer.py`
+- `app/signals.py`
+- `app/database.py`
+- `app/telegram.py`
+- `app/main.py`
 
-## أين أضع الـ API الحقيقي؟
-- عدّل متغيرات البيئة:
-  - `API_BASE_URL`
-  - `API_KEY`
-  - `API_EVENTS_ENDPOINT`، `API_ODDS_ENDPOINT`، `API_RESULTS_ENDPOINT`
-- يمكن تمرير mapping مخصص عبر `API_MAPPING_PATH` (JSON) لتحديد أسماء المفاتيح المختلفة.
-
-## Telegram Setup
-1) إنشاء بوت عبر BotFather:
-   - افتح BotFather على تيليجرام وأرسل `/newbot` ثم اتبع التعليمات للحصول على `TELEGRAM_BOT_TOKEN`.
-2) الحصول على `chat_id`:
-   - أرسل رسالة إلى البوت ثم استخدم أحد أدوات جلب الـ updates أو بوت مساعد لمعرفة `chat_id`.
-   - إذا كنت تستخدم قناة، اجعل البوت Admin ثم استخدم `@channelusername` كقيمة `TELEGRAM_CHAT_ID`.
-3) مثال إعدادات:
-```bash
-TELEGRAM_ENABLED=1
-TELEGRAM_BOT_TOKEN=xxxxx
-TELEGRAM_CHAT_ID=yyyyy
-MATCH_URL_TEMPLATE="https://your-site.com/match/{event_id}"
-```
-4) اختبار الاتصال:
-```bash
-python -m app.cli telegram-test
-```
-> إذا كان الـ API يوفر رابط مباشر للمباراة، سيتم استخدامه تلقائيًا بدل `MATCH_URL_TEMPLATE`.
-
-## هيكلية المشروع
-```
-app/
-  api/
-    base.py
-    http_client.py
-    generic_adapter.py
-    mock_data/
-  db/
-    schema.py
-    repo.py
-  markets/
-    mapper.py
-    overround.py
-    filters.py
-  strategies/
-    base.py
-    totals_baseline.py
-  backtest/
-    engine.py
-    metrics.py
-  alerts/
-    notifier.py
-  cli.py
-```
-
-## الاختبارات
+## اختبارات
 ```bash
 pytest
 ```
+
+## Risk Disclaimer
+Sports betting carries financial risk and outcomes are uncertain even when using data-driven analysis. This project provides analytics only and does not guarantee profits. See: https://www.versussportssimulator.com/articles/what-financial-risks-come-with-sports-bets-and-attempts-to-win-back-losses
