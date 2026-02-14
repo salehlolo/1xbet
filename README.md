@@ -2,19 +2,12 @@
 
 مشروع **تحليل بيانات وتنبيهات فقط**. لا يقوم بتسجيل دخول أو تنفيذ رهانات.
 
-## الميزات
-- جلب مباريات in-play و upcoming من BetsAPI (1xBet endpoints).
-- تحويل الأودز إلى احتمالات ضمنية، وإزالة الـvig لاستخراج الاحتمالات العادلة.
-- اكتشاف إشارات: `positive_ev` و `outlier` و `steam`.
-- طبقة تحليل إضافية (`app/brain/analyst.py`) لإنتاج `overall_score` و `confidence`.
-- تخزين snapshots/alerts/CLV في SQLite.
-- إشعارات Telegram مع نظام cooldown.
-- انضباط تنبيهات: حد يومي `MAX_ALERTS_PER_DAY`.
-
 ## تنبيه مسؤولية
 النتائج الرياضية غير مؤكدة. هذا المشروع يقدّم أدوات تحليل فقط ولا يضمن الربحية.
 
-## Setup
+## إعداد سريع
+
+### Linux / macOS
 ```bash
 python -m venv .venv
 source .venv/bin/activate
@@ -22,47 +15,49 @@ pip install -e .
 cp .env.example .env
 ```
 
-## إعداد `.env`
-- `BETS_API_KEY` (إلزامي)
-- `SPORTS_IDS` مثال: `1,3,2`
-- `ALLOWED_MARKET_GROUPS` مثال: `1X2,totals,handicap`
-- `LOOKAHEAD_MINUTES` (فلترة المباريات القادمة)
-- `MIN_MINUTES_TO_KICKOFF` (استبعاد المباريات التي ستبدأ خلال دقائق قليلة جدًا)
-- `MAX_ALERTS_PER_DAY`
-- `MIN_SCORE_THRESHOLD`
-- `MAX_OVERROUND`
-- `MAX_ANALYST_EVALS_PER_CYCLE` (تحديد أعلى عدد فرص تدخل طبقة التحليل المتقدم في كل دورة)
-- `UPCOMING_ONLY=1` لتشغيل وضع المباريات القادمة فقط وتقليل الضغط
-- `STEAM_PROB_DELTA`, `OUTLIER_THRESHOLD`, `EV_THRESHOLD`
-- `COOLDOWN_MINUTES`
-- Telegram: `TELEGRAM_ENABLED`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
+### Windows PowerShell
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -e .
+Copy-Item .env.example .env
+```
 
-## التشغيل
+ثم افتح `.env` وضع القيم الحقيقية فقط من البيئة لديك (بدون وضع أي أسرار داخل الكود):
+- `BETS_API_KEY`
+- `TELEGRAM_BOT_TOKEN`
+- `TELEGRAM_CHAT_ID`
+- `UPCOMING_ONLY=1`
+- `LOOKAHEAD_MINUTES=60`
+- `MIN_MINUTES_TO_KICKOFF=5`
+
+## التشغيل الصحيح
+يمكنك التشغيل بأي من الطريقتين:
 ```bash
 python -m app.main
 ```
+أو:
+```bash
+python run.py
+```
 
-للوضع الموصى به (مباريات قريبة فقط):
-- `LOOKAHEAD_MINUTES=60`
-- `MIN_MINUTES_TO_KICKOFF=5`
-- `UPCOMING_ONLY=1`
-- `MAX_EVENTS_PER_CYCLE=120`
-- `MAX_ANALYST_EVALS_PER_CYCLE=30`
+## ما الذي يتم فحصه عند البدء؟
+Startup healthcheck يطبع فقط (بدون أسرار):
+- هل `BETS_API_KEY` محمّل؟ `True/False`
+- هل Telegram مفعل؟ `True/False`
+- وضع التشغيل `UPCOMING_ONLY`
+- قيم `LOOKAHEAD_MINUTES` و `MIN_MINUTES_TO_KICKOFF`
 
-## تقرير الأداء (CLV)
-يوجد تجميع لأداء CLV في قاعدة البيانات عبر `Database.report_performance(days=7)` ويمكن ربطه لاحقًا بأمر CLI.
+إذا هناك إعدادات ناقصة سيظهر اسم الإعداد الناقص فقط (مثل `BETS_API_KEY`) بدون طباعة القيم السرية.
 
-## الهيكل
-- `app/config.py`
-- `app/fetcher.py`
-- `app/normalizer.py`
-- `app/signals.py`
-- `app/brain/analyst.py`
-- `app/database.py`
-- `app/telegram.py`
-- `app/main.py`
+## أهم الإعدادات
+- `UPCOMING_ONLY=1` لتشغيل وضع المباريات القادمة فقط.
+- `LOOKAHEAD_MINUTES=60` نافذة البحث القادمة.
+- `MIN_MINUTES_TO_KICKOFF=5` لتجنب المباريات التي ستبدأ فورًا.
+- `MAX_EVENTS_PER_CYCLE` لتقليل حمل fetch.
+- `MAX_ANALYST_EVALS_PER_CYCLE` لتقليل حمل التحليل المتقدم.
 
-## اختبارات
+## الاختبارات
 ```bash
 pytest
 ```
