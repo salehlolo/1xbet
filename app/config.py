@@ -44,6 +44,7 @@ class Settings:
     concurrency_limit: int = 5
 
     telegram_enabled: bool = False
+    telegram_enabled_raw_present: bool = False
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
     telegram_parse_mode: str = "Markdown"
@@ -85,11 +86,18 @@ class Settings:
 
 
 def _env_bool(name: str, default: str = "0") -> bool:
-    return os.getenv(name, default) == "1"
+    raw = os.getenv(name)
+    if raw is None:
+        raw = default
+    return str(raw).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _env_present(name: str) -> bool:
+    return os.getenv(name) is not None
 
 
 def get_settings() -> Settings:
-    return Settings(
+    settings = Settings(
         bets_api_base_url=os.getenv("BETS_API_BASE_URL", "https://api.betsapi.com"),
         bets_api_key=os.getenv("BETS_API_KEY", ""),
         inplay_endpoint=os.getenv("BETS_INPLAY_ENDPOINT", "/v1/1xbet/inplay"),
@@ -117,7 +125,8 @@ def get_settings() -> Settings:
         max_overround=float(os.getenv("MAX_OVERROUND", "1.06")),
         request_timeout=float(os.getenv("REQUEST_TIMEOUT_SECONDS", "20")),
         concurrency_limit=int(os.getenv("CONCURRENCY_LIMIT", "5")),
-        telegram_enabled=_env_bool("TELEGRAM_ENABLED", "0"),
+        telegram_enabled=False,
+        telegram_enabled_raw_present=_env_present("TELEGRAM_ENABLED"),
         telegram_bot_token=os.getenv("TELEGRAM_BOT_TOKEN", ""),
         telegram_chat_id=os.getenv("TELEGRAM_CHAT_ID", ""),
         telegram_parse_mode=os.getenv("TELEGRAM_PARSE_MODE", "Markdown"),
@@ -138,6 +147,13 @@ def get_settings() -> Settings:
         match_url_template=os.getenv("MATCH_URL_TEMPLATE", ""),
         telegram_include_event_id=_env_bool("TELEGRAM_INCLUDE_EVENT_ID", "1"),
     )
+
+    if settings.telegram_enabled_raw_present:
+        settings.telegram_enabled = _env_bool("TELEGRAM_ENABLED", "0")
+    else:
+        settings.telegram_enabled = bool(settings.telegram_bot_token and settings.telegram_chat_id)
+
+    return settings
 
 
 def missing_required_settings(settings: Settings) -> list[str]:

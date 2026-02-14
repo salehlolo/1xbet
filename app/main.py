@@ -3,10 +3,10 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
 # Load .env before importing app modules that depend on environment variables.
-load_dotenv()
+load_dotenv(dotenv_path=find_dotenv(".env", usecwd=True), override=True)
 
 from app.brain.analyst import Analyst
 from app.config import Settings, get_settings, missing_required_settings, validate_settings
@@ -31,6 +31,9 @@ def healthcheck_summary(settings: Settings) -> dict[str, object]:
     return {
         "bets_api_key_loaded": bool(settings.bets_api_key),
         "telegram_enabled": bool(settings.telegram_enabled),
+        "telegram_enabled_raw_present": settings.telegram_enabled_raw_present,
+        "telegram_bot_set": bool(settings.telegram_bot_token),
+        "telegram_chat_set": bool(settings.telegram_chat_id),
         "upcoming_only": bool(settings.upcoming_only),
         "lookahead_minutes": settings.lookahead_minutes,
         "min_minutes_to_kickoff": settings.min_minutes_to_kickoff,
@@ -43,8 +46,11 @@ def log_startup_healthcheck(settings: Settings) -> None:
         logger.warning("Missing settings detected: %s", ", ".join(missing))
     summary = healthcheck_summary(settings)
     logger.info(
-        "Healthcheck: BETS_API_KEY loaded=%s | Telegram enabled=%s | UPCOMING_ONLY=%s | LOOKAHEAD=%s | MIN_KICKOFF=%s",
+        "Healthcheck: BETS_API_KEY loaded=%s | TELEGRAM_ENABLED raw present=%s | BOT_SET=%s | CHAT_SET=%s | Telegram enabled=%s | UPCOMING_ONLY=%s | LOOKAHEAD=%s | MIN_KICKOFF=%s",
         summary["bets_api_key_loaded"],
+        summary["telegram_enabled_raw_present"],
+        summary["telegram_bot_set"],
+        summary["telegram_chat_set"],
         summary["telegram_enabled"],
         summary["upcoming_only"],
         summary["lookahead_minutes"],
@@ -151,6 +157,7 @@ async def process_event(
 
 async def poll_loop() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+    logging.getLogger("httpx").setLevel(logging.WARNING)
     settings = validate_settings(get_settings())
     log_startup_healthcheck(settings)
 

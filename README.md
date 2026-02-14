@@ -41,6 +41,13 @@ python -m app.main
 python run.py
 ```
 
+
+## فحص سريع لقيم البيئة
+```bash
+python run.py
+python -c "from dotenv import find_dotenv, load_dotenv; import os; load_dotenv(find_dotenv('.env', usecwd=True), override=True); print('TELEGRAM_ENABLED=', os.getenv('TELEGRAM_ENABLED'))"
+```
+
 ## ما الذي يتم فحصه عند البدء؟
 Startup healthcheck يطبع فقط (بدون أسرار):
 - هل `BETS_API_KEY` محمّل؟ `True/False`
