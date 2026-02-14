@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, Iterable, List
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.config import Settings
 from app.models import BetsAPIResponse, EventModel, MarketModel, OutcomeModel
+
+logger = logging.getLogger(__name__)
 
 
 def _parse_start_time(raw: dict[str, Any]) -> datetime | None:
@@ -21,6 +25,18 @@ def _parse_start_time(raw: dict[str, Any]) -> datetime | None:
         return datetime.fromisoformat(str(value).replace("Z", "+00:00")).replace(tzinfo=None)
     except Exception:
         return None
+
+
+def _mask_token_in_url(url: str) -> str:
+    parsed = urlsplit(url)
+    query = parse_qsl(parsed.query, keep_blank_values=True)
+    masked = []
+    for key, value in query:
+        if key.lower() == "token":
+            masked.append((key, "***"))
+        else:
+            masked.append((key, value))
+    return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, urlencode(masked), parsed.fragment))
 
 
 class BetsAPIFetcher:
@@ -36,7 +52,12 @@ class BetsAPIFetcher:
     async def _get(self, endpoint: str, params: dict[str, Any]) -> dict[str, Any]:
         async with self._sem:
             response = await self._client.get(endpoint, params=params)
-            response.raise_for_status()
+            try:
+                response.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                safe_url = _mask_token_in_url(str(exc.request.url))
+                logger.error("HTTP status error %s for %s", exc.response.status_code, safe_url)
+                raise
             return response.json()
 
     async def fetch_events(self, mode: str, sport_id: int, days: int = 1) -> List[str]:

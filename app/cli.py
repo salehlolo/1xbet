@@ -17,7 +17,7 @@ from app.strategies.totals_baseline import TotalsBaselineConfig, TotalsBaselineS
 from app.backtest.engine import BacktestConfig, BacktestEngine
 from app.alerts.notifier import Alert, Notifier, TelegramNotifier
 from app.database import Database
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
 SPORTS = ["soccer", "basketball", "tennis", "hockey", "baseball"]
 
@@ -272,7 +272,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     setup_logging(logging.INFO)
-    load_dotenv()
+    load_dotenv(dotenv_path=find_dotenv(".env", usecwd=True), override=True)
     parser = build_parser()
     args = parser.parse_args()
     args.func(args)

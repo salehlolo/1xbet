@@ -42,6 +42,7 @@ class Settings:
 
     request_timeout: float = 20.0
     concurrency_limit: int = 5
+    debug: bool = False
 
     telegram_enabled: bool = False
     telegram_enabled_raw_present: bool = False
@@ -125,6 +126,7 @@ def get_settings() -> Settings:
         max_overround=float(os.getenv("MAX_OVERROUND", "1.06")),
         request_timeout=float(os.getenv("REQUEST_TIMEOUT_SECONDS", "20")),
         concurrency_limit=int(os.getenv("CONCURRENCY_LIMIT", "5")),
+        debug=_env_bool("DEBUG", "0"),
         telegram_enabled=False,
         telegram_enabled_raw_present=_env_present("TELEGRAM_ENABLED"),
         telegram_bot_token=os.getenv("TELEGRAM_BOT_TOKEN", ""),

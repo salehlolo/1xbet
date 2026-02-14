@@ -67,6 +67,16 @@ Startup healthcheck يطبع فقط (بدون أسرار):
 - `MAX_EVENTS_PER_CYCLE` لتقليل حمل fetch.
 - `MAX_ANALYST_EVALS_PER_CYCLE` لتقليل حمل التحليل المتقدم.
 
+
+## Troubleshooting
+- **أولوية التشغيل:** استخدم `python run.py` فقط.
+- **اختبار Telegram خارج السكربت:** إذا `sendMessage` يرجع 200 لكن لا توجد إشارات، راقب لوج المراحل الجديدة (`upcoming_window_events`, `signals_count`, `Sending ... signals`).
+- **لا توجد مباريات:** وسّع النافذة مؤقتًا للتشخيص:
+  - `LOOKAHEAD_MINUTES=180`
+  - `MIN_MINUTES_TO_KICKOFF=1`
+- **لا توجد إشارات:** خفف العتبات مؤقتًا (`EV_THRESHOLD`, `OUTLIER_THRESHOLD`, `MIN_SCORE_THRESHOLD`).
+- **.env غير مقروء:** تأكد أن الملف اسمه `.env` داخل جذر المشروع وشغّل عبر `python run.py`.
+
 ## الاختبارات
 ```bash
 pytest

@@ -68,7 +68,8 @@ def test_process_event_respects_remaining_budget():
     tg = _TG()
     analyst = _Analyst()
 
-    sent, remaining = asyncio.run(process_event(event, db, tg, analyst, settings, remaining_budget=1))
+    sent, remaining, generated = asyncio.run(process_event(event, db, tg, analyst, settings, remaining_budget=1))
     assert remaining == 0
+    assert generated >= 0
     assert sent >= 0
     assert db.inserted is True
